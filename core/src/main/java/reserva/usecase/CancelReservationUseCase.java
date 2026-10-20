@@ -1,5 +1,7 @@
 package reserva.usecase;
 
+import reserva.exception.PersistenceException;
+import reserva.exception.ReservationNotFoundException;
 import reserva.modelo.Reserva;
 import reserva.output.ReservationRepository;
 
@@ -12,11 +14,18 @@ public class CancelReservationUseCase {
         this.reservationRepository = reservationRepository;
     }
 
-    public void execute(UUID id) {
+    public Reserva execute(UUID id) {
         Reserva reserva = reservationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("La reserva no existe"));
+                .orElseThrow(() -> new ReservationNotFoundException("La reserva con ID " + id + " no fue encontrada"));
 
         reserva.cancelar();
-        reservationRepository.save(reserva);
+
+        try {
+            reservationRepository.save(reserva);
+        } catch (Exception e) {
+            throw new PersistenceException("Error al guardar la reserva cancelada", e);
+        }
+
+        return reserva;
     }
 }

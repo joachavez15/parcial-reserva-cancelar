@@ -3,7 +3,9 @@ package reserva.usecase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import reserva.exception.PersistenceException;
 import reserva.exception.ReservationAlreadyCancelledException;
+import reserva.exception.ReservationNotFoundException;
 import reserva.modelo.EstadoReserva;
 import reserva.modelo.Reserva;
 import reserva.output.ReservationRepository;
@@ -33,9 +35,10 @@ class CancelReservationUseCaseTest {
         Reserva reserva = Reserva.instance(ID, "cliente@mail.com", LocalDate.of(2026, 12, 1), 2);
         when(repository.findById(ID)).thenReturn(Optional.of(reserva));
 
-        useCase.execute(ID);
+        Reserva resultado = useCase.execute(ID);
 
-        assertEquals(EstadoReserva.CANCELADA, reserva.getEstado());
+        assertNotNull(resultado);
+        assertEquals(EstadoReserva.CANCELADA, resultado.getEstado());
         verify(repository, times(1)).save(reserva);
     }
 
@@ -43,7 +46,7 @@ class CancelReservationUseCaseTest {
     void fallaSiLaReservaNoExiste() {
         when(repository.findById(ID)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> useCase.execute(ID));
+        assertThrows(ReservationNotFoundException.class, () -> useCase.execute(ID));
         verify(repository, never()).save(any());
     }
 
@@ -55,5 +58,14 @@ class CancelReservationUseCaseTest {
 
         assertThrows(ReservationAlreadyCancelledException.class, () -> useCase.execute(ID));
         verify(repository, never()).save(any());
+    }
+
+    @Test
+    void fallaSiNoSePuedeGuardar() {
+        Reserva reserva = Reserva.instance(ID, "cliente@mail.com", LocalDate.of(2026, 12, 1), 2);
+        when(repository.findById(ID)).thenReturn(Optional.of(reserva));
+        doThrow(new RuntimeException("Error de base de datos")).when(repository).save(reserva);
+
+        assertThrows(PersistenceException.class, () -> useCase.execute(ID));
     }
 }
